@@ -4,6 +4,8 @@ from torchvision.models import ResNet50_Weights
 import swanlab
 from torch.utils.data import DataLoader
 from load_datasets import DatasetLoader
+from torch.utils.data import Dataset
+from PIL import Image
 import os
 
 
@@ -17,8 +19,11 @@ def train(model, device, train_dataloader, optimizer, criterion, epoch):
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
-        print('Epoch [{}/{}], Iteration [{}/{}], Loss: {:.4f}'.format(epoch, num_epochs, iter + 1, len(TrainDataLoader),
-                                                                      loss.item()))
+        print(
+            "Epoch [{}/{}], Iteration [{}/{}], Loss: {:.4f}".format(
+                epoch, num_epochs, iter + 1, len(TrainDataLoader), loss.item()
+            )
+        )
         swanlab.log({"train_loss": loss.item()})
 
 
@@ -36,13 +41,15 @@ def test(model, device, test_dataloader, epoch):
             _, predicted = torch.max(outputs.data, 1)
 
             if iter < 30:
-                images_list.append(swanlab.Image(inputs, caption=class_name[predicted.item()]))
+                images_list.append(
+                    swanlab.Image(inputs, caption=class_name[predicted.item()])
+                )
 
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
     accuracy = correct / total * 100
-    print('Accuracy: {:.2f}%'.format(accuracy))
+    print("Accuracy: {:.2f}%".format(accuracy))
     swanlab.log({"test_acc": accuracy})
     swanlab.log({"Image": images_list})
 
@@ -68,6 +75,9 @@ if __name__ == "__main__":
 
     # 初始化swanlab
     swanlab.init(
+        # 修改为本地部署
+        logdir="./logs",
+        mode="local",
         # 设置项目、实验名和实验介绍
         project="Cats_Dogs_Classification",
         experiment_name="ResNet50",
@@ -84,8 +94,8 @@ if __name__ == "__main__":
         },
     )
 
-    TrainDataset = DatasetLoader("datasets/train.csv")
-    ValDataset = DatasetLoader("datasets/val.csv")
+    TrainDataset = DatasetLoader("train")
+    ValDataset = DatasetLoader("val")
     TrainDataLoader = DataLoader(TrainDataset, batch_size=batch_size, shuffle=True)
     ValDataLoader = DataLoader(ValDataset, batch_size=1, shuffle=False)
 
@@ -102,7 +112,9 @@ if __name__ == "__main__":
 
     # 开始训练
     for epoch in range(1, num_epochs + 1):
-        train(model, device, TrainDataLoader, optimizer, criterion, epoch)  # Train for one epoch
+        train(
+            model, device, TrainDataLoader, optimizer, criterion, epoch
+        )  # Train for one epoch
 
         if epoch % 4 == 0:  # Test every 4 epochs
             accuracy = test(model, device, ValDataLoader, epoch)
@@ -110,5 +122,5 @@ if __name__ == "__main__":
     # 保存权重文件
     if not os.path.exists("checkpoint"):
         os.makedirs("checkpoint")
-    torch.save(model.state_dict(), 'checkpoint/latest_checkpoint.pth')
+    torch.save(model.state_dict(), "checkpoint/latest_checkpoint.pth")
     print("Training complete")
